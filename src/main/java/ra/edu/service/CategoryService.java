@@ -8,7 +8,7 @@ import ra.edu.entity.Category;
 
 public interface CategoryService {
     Page<Category> findAll(Pageable pageable);
-    Page<Category> getCategories(Pageable pageable, String search);
+    Page<CategoryResponse> getCategories(Pageable pageable, String search);
     CategoryResponse create(CategoryRequest request);
     CategoryResponse update(int id, CategoryRequest request);
     CategoryResponse delete(int id);

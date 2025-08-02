@@ -26,11 +26,15 @@ public class CategoryServiceImp implements CategoryService {
     }
 
     @Override
-    public Page<Category> getCategories(Pageable pageable, String search) {
+    public Page<CategoryResponse> getCategories(Pageable pageable, String search) {
+        Page<Category> categoriesPage;
         if (search == null || search.trim().isEmpty()) {
-            return categoryRepository.findByIsDeletedFalse(pageable);
+            categoriesPage = categoryRepository.findByIsDeletedFalse(pageable);
+        } else {
+            categoriesPage = categoryRepository.searchByName(search.trim(), pageable);
         }
-        return categoryRepository.searchByName(search.trim(), pageable);
+
+        return categoriesPage.map(CategoryMapper::toResponse);
     }
 
     @Override

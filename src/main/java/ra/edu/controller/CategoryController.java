@@ -28,13 +28,13 @@ public class CategoryController {
     private CategoryService categoryService;
 
     @GetMapping
-    public ResponseEntity<BaseResponse<PagedData<Category>>> getCategories(
+    public ResponseEntity<BaseResponse<PagedData<CategoryResponse>>> getCategories(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String search
     ) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Category> categories = categoryService.getCategories(pageable, search);
+        Page<CategoryResponse> categories = categoryService.getCategories(pageable, search);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
                 "Lấy danh sách danh mục thành công",
