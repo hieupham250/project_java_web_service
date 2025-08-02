@@ -3,58 +3,90 @@ package ra.edu.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import ra.edu.dto.request.ChangePasswordRequest;
-import ra.edu.dto.request.UserProfileUpdateRequest;
+import ra.edu.dto.request.UpdateStatusRequest;
+import ra.edu.dto.request.UserAdminUpdateRequest;
 import ra.edu.dto.response.BaseResponse;
+import ra.edu.dto.response.PagedData;
 import ra.edu.dto.response.UserResponse;
 import ra.edu.service.UserService;
 
 import java.time.LocalDateTime;
 
+import static ra.edu.util.ResponseUtil.convertToPagedData;
+
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
     @Autowired
     private UserService userService;
 
-    @GetMapping("/profile")
-    public ResponseEntity<BaseResponse<UserResponse>> getProfile(Authentication authentication) {
-        String username = authentication.getName();
-        UserResponse user = userService.getCurrentUser(username);
+    @GetMapping
+    public ResponseEntity<BaseResponse<PagedData<UserResponse>>> getUsers(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search
+    ) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+        Page<UserResponse> users = userService.getUsers(pageable, search);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
-                "Lấy thông tin người dùng thành công",
-                user,
+                "Lấy danh sách người dùng thành công",
+                convertToPagedData(users),
                 null,
                 LocalDateTime.now()));
     }
 
-    @PutMapping("/profile")
-    public ResponseEntity<BaseResponse<String>> updateProfile(@RequestBody @Valid UserProfileUpdateRequest request,
-                                                              Authentication authentication) {
-        String username = authentication.getName();
-        userService.updateProfile(username, request);
+    @GetMapping("/{id}")
+    public ResponseEntity<BaseResponse<UserResponse>> getUserById(@PathVariable int id) {
+        UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
-                "Cập nhật thông tin người dùng thành công",
-                null,
+                "Lấy chi tiết người dùng thành công",
+                user, null,
+                LocalDateTime.now()));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<BaseResponse<UserResponse>> update(
+            @PathVariable int id,
+            @RequestBody @Valid UserAdminUpdateRequest request
+    ) {
+        UserResponse updatedUser = userService.updateUserByAdmin(id, request);
+        return ResponseEntity.ok(new BaseResponse<>(
+                true,
+                "Cập nhật người dùng thành công",
+                updatedUser,
                 null,
                 LocalDateTime.now()));
     }
 
-    @PutMapping("/profile/change-password")
-    public ResponseEntity<BaseResponse<String>> changePassword(@RequestBody @Valid ChangePasswordRequest request,
-                                                               Authentication authentication) {
-        String username = authentication.getName();
-        userService.changePassword(username, request);
+    @PutMapping("/{id}/status")
+    public ResponseEntity<BaseResponse<UserResponse>> updateUserStatus(
+            @PathVariable int id,
+            @RequestBody @Valid UpdateStatusRequest request
+    ) {
+        UserResponse updatedUser = userService.updateStatus(id, request.getStatus());
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
-                "Thay đổi mật khẩu thành công",
+                "Cập nhật trạng thái thành công",
+                updatedUser,
                 null,
+                LocalDateTime.now()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<BaseResponse<UserResponse>> softDeleteUser(@PathVariable int id) {
+        UserResponse deletedUser = userService.softDelete(id);
+        return ResponseEntity.ok(new BaseResponse<>(
+                true,
+                "Xóa người dùng thành công",
+                deletedUser,
                 null,
                 LocalDateTime.now()));
     }

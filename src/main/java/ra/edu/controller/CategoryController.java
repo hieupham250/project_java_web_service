@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ra.edu.dto.request.CategoryRequest;
 import ra.edu.dto.response.BaseResponse;
+import ra.edu.dto.response.CategoryResponse;
 import ra.edu.dto.response.PagedData;
 import ra.edu.entity.Category;
 import ra.edu.service.CategoryService;
@@ -29,10 +30,11 @@ public class CategoryController {
     @GetMapping
     public ResponseEntity<BaseResponse<PagedData<Category>>> getCategories(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int size
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false) String search
     ) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Category> categories = categoryService.getCategories(pageable);
+        Page<Category> categories = categoryService.getCategories(pageable, search);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
                 "Lấy danh sách danh mục thành công",
@@ -43,7 +45,7 @@ public class CategoryController {
     }
 
     @PostMapping
-    public ResponseEntity<BaseResponse<Category>> create(@RequestBody @Valid CategoryRequest request) {
+    public ResponseEntity<BaseResponse<CategoryResponse>> create(@RequestBody @Valid CategoryRequest request) {
         return new ResponseEntity<>(
                 new BaseResponse<>(
                         true,
@@ -57,7 +59,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BaseResponse<Category>> update(@PathVariable int id,
+    public ResponseEntity<BaseResponse<CategoryResponse>> update(@PathVariable int id,
                                                          @RequestBody @Valid CategoryRequest request) {
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
@@ -69,12 +71,12 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<BaseResponse<String>> delete(@PathVariable int id) {
+    public ResponseEntity<BaseResponse<CategoryResponse>> delete(@PathVariable int id) {
         categoryService.delete(id);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
                 "Xóa danh mục thành công",
-                "OK",
+                categoryService.delete(id),
                 null,
                 LocalDateTime.now()
         ));

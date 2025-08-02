@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import ra.edu.dto.request.CategoryRequest;
+import ra.edu.dto.response.CategoryResponse;
 import ra.edu.entity.Category;
 import ra.edu.exception.ConflictException;
 import ra.edu.exception.NotFoundException;
@@ -25,21 +26,32 @@ public class CategoryServiceImp implements CategoryService {
     }
 
     @Override
-    public Page<Category> getCategories(Pageable pageable) {
-        return categoryRepository.findByIsDeletedFalse(pageable);
+    public Page<Category> getCategories(Pageable pageable, String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return categoryRepository.findByIsDeletedFalse(pageable);
+        }
+        return categoryRepository.searchByName(search.trim(), pageable);
     }
 
     @Override
-    public Category create(CategoryRequest request) {
+    public CategoryResponse create(CategoryRequest request) {
         if (categoryRepository.existsByName(request.getName())) {
             throw new ConflictException("Tên danh mục đã tồn tại");
         }
-        Category category = CategoryMapper.toEntity(request);
-        return categoryRepository.save(category);
+        Category category = Category.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .createdAt(LocalDate.now())
+                .isDeleted(false)
+                .build();
+
+        categoryRepository.save(category);
+
+        return CategoryMapper.toResponse(category);
     }
 
     @Override
-    public Category update(int id, CategoryRequest request) {
+    public CategoryResponse update(int id, CategoryRequest request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tồn tại category"));
 
@@ -48,12 +60,16 @@ public class CategoryServiceImp implements CategoryService {
             throw new ConflictException("Tên danh mục đã tồn tại");
         }
 
-        CategoryMapper.updateEntity(category, request);
-        return categoryRepository.save(category);
+        category.setName(request.getName());
+        category.setDescription(request.getDescription());
+        category.setUpdatedAt(LocalDate.now());
+        categoryRepository.save(category);
+
+        return CategoryMapper.toResponse(category);
     }
 
     @Override
-    public void delete(int id) {
+    public CategoryResponse delete(int id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tồn tại category"));
 
@@ -66,7 +82,6 @@ public class CategoryServiceImp implements CategoryService {
 
         category.setIsDeleted(true);
         category.setDeletedAt(LocalDate.now());
-        categoryRepository.save(category);
-
+        return CategoryMapper.toResponse(categoryRepository.save(category));
     }
 }

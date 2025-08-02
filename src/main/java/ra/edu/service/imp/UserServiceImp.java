@@ -1,10 +1,11 @@
 package ra.edu.service.imp;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import ra.edu.dto.request.ChangePasswordRequest;
-import ra.edu.dto.request.UserProfileUpdateRequest;
+import ra.edu.dto.request.UserAdminUpdateRequest;
+import ra.edu.dto.response.PagedData;
 import ra.edu.dto.response.UserResponse;
 import ra.edu.entity.User;
 import ra.edu.exception.ConflictException;
@@ -13,24 +14,42 @@ import ra.edu.mapper.UserMapper;
 import ra.edu.repository.UserRepository;
 import ra.edu.service.UserService;
 
+import java.time.LocalDate;
+
 @Service
 public class UserServiceImp implements UserService {
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Override
-    public UserResponse getCurrentUser(String username) {
-        User user = userRepository.findByUsername(username)
+    public Page<UserResponse> getUsers(Pageable pageable, String search) {
+        Page<User> usersPage;
+
+        if (search == null || search.trim().isEmpty()) {
+            usersPage = userRepository.findAllExcludeAdmin(pageable);
+        } else {
+            usersPage = userRepository.searchByNameOrEmail(search.trim(), pageable);
+        }
+
+        return usersPage.map(UserMapper::toResponse);
+    }
+
+    @Override
+    public UserResponse getUserById(int id) {
+        User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
         return UserMapper.toResponse(user);
     }
 
     @Override
-    public void updateProfile(String username, UserProfileUpdateRequest request) {
-        User user = userRepository.findByUsername(username)
+    public UserResponse  updateUserByAdmin(int id, UserAdminUpdateRequest request) {
+        User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
+
+        boolean isEmailChanged = !user.getEmail().equalsIgnoreCase(request.getEmail());
+        if (isEmailChanged && userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new ConflictException("Email đã được sử dụng bởi người dùng khác");
+        }
 
         boolean isPhoneChanged = !user.getPhone().equalsIgnoreCase(request.getPhone());
         if (isPhoneChanged && userRepository.findByPhone(request.getPhone()).isPresent()) {
@@ -38,27 +57,38 @@ public class UserServiceImp implements UserService {
         }
 
         user.setFullName(request.getFullName());
+        user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
         user.setAddress(request.getAddress());
+        user.setStatus(request.getStatus());
         user.setAvatar(request.getAvatar());
+        user.setUpdatedAt(LocalDate.now());
 
         userRepository.save(user);
+
+        return UserMapper.toResponse(user);
     }
 
     @Override
-    public void changePassword(String username, ChangePasswordRequest request) {
-        User user = userRepository.findByUsername(username)
+    public UserResponse updateStatus(int id, Boolean status) {
+        User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
-
-        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            throw new ConflictException("Mật khẩu cũ không đúng");
-        }
-
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new ConflictException("Mật khẩu xác nhận không khớp");
-        }
-
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setStatus(status);
+        user.setUpdatedAt(LocalDate.now());
         userRepository.save(user);
+
+        return UserMapper.toResponse(user);
+    }
+
+    @Override
+    public UserResponse softDelete(int id) {
+        User user = userRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
+        user.setIsDeleted(true);
+        user.setDeletedAt(LocalDate.now());
+        user.setUpdatedAt(LocalDate.now());
+        userRepository.save(user);
+
+        return UserMapper.toResponse(user);
     }
 }

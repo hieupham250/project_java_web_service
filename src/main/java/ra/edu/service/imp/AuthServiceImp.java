@@ -9,12 +9,18 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import ra.edu.dto.request.ChangePasswordRequest;
 import ra.edu.dto.request.UserLogin;
+import ra.edu.dto.request.UserProfileUpdateRequest;
 import ra.edu.dto.request.UserRegister;
 import ra.edu.dto.response.JWTResponse;
+import ra.edu.dto.response.UserResponse;
 import ra.edu.entity.Role;
 import ra.edu.entity.User;
 import ra.edu.enums.RoleName;
+import ra.edu.exception.ConflictException;
+import ra.edu.exception.NotFoundException;
+import ra.edu.mapper.UserMapper;
 import ra.edu.repository.RoleRepository;
 import ra.edu.repository.UserRepository;
 import ra.edu.security.jwt.JWTProvider;
@@ -23,6 +29,8 @@ import ra.edu.service.AuthService;
 import ra.edu.service.EmailService;
 
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthServiceImp implements AuthService {
@@ -41,6 +49,8 @@ public class AuthServiceImp implements AuthService {
     @Autowired
     private VerificationServiceImp verificationServiceImp;
 
+    private final Map<String, UserRegister> tempUsers = new ConcurrentHashMap<>();
+
     @Override
     public User register(UserRegister userRegister) {
         if (userRepository.findByUsername(userRegister.getUsername()).isPresent()) {
@@ -57,27 +67,22 @@ public class AuthServiceImp implements AuthService {
 //            throw new IllegalArgumentException("Vai trò không được để trống");
 //        }
 
-        User user = User.builder()
-                .fullName(userRegister.getFullName())
-                .username(userRegister.getUsername())
-                .password(passwordEncoder.encode(userRegister.getPassword()))
-                .email(userRegister.getEmail())
-                .phone(userRegister.getPhone())
-                .address(userRegister.getAddress())
-                .status(true)
-                .role(getRoleFromString("CUSTOMER"))
-                .isVerify(false)
-                .isDeleted(false)
-                .createdAt(LocalDate.now())
-                .build();
+        // Lưu bản copy có password đã mã hóa
+        UserRegister temp = new UserRegister();
+        temp.setFullName(userRegister.getFullName());
+        temp.setUsername(userRegister.getUsername());
+        temp.setPassword(passwordEncoder.encode(userRegister.getPassword()));
+        temp.setEmail(userRegister.getEmail());
+        temp.setPhone(userRegister.getPhone());
+        temp.setAddress(userRegister.getAddress());
 
-        userRepository.save(user);
+        tempUsers.put(userRegister.getEmail(), temp);
 
         String code = generateVerificationCode();
-        verificationServiceImp.saveCode(user.getEmail(), code);
-        emailService.sendSimpleMail(user.getEmail(), "Xác minh Email", "Mã xác thực của bạn là: " + code);
+        verificationServiceImp.saveCode(userRegister.getEmail(), code);
+        emailService.sendSimpleMail(userRegister.getEmail(), "Xác minh Email", "Mã xác thực của bạn là: " + code);
 
-        return user;
+        return null;
     }
 
     @Override
@@ -112,6 +117,83 @@ public class AuthServiceImp implements AuthService {
                 .build();
     }
 
+    @Override
+    public boolean verifyEmail(String email, String code) {
+        boolean isValid = verificationServiceImp.verifyCode(email, code);
+        if (isValid) {
+            UserRegister temp = tempUsers.get(email);
+            if (temp == null) {
+                throw new IllegalArgumentException("Không tìm thấy thông tin đăng ký tạm thời");
+            }
+
+            User user = User.builder()
+                    .fullName(temp.getFullName())
+                    .username(temp.getUsername())
+                    .password(temp.getPassword())
+                    .email(temp.getEmail())
+                    .phone(temp.getPhone())
+                    .address(temp.getAddress())
+                    .status(true)
+                    .isVerify(true)
+                    .isDeleted(false)
+                    .role(getRoleFromString("CUSTOMER"))
+                    .createdAt(LocalDate.now())
+                    .build();
+
+            userRepository.save(user);
+
+            tempUsers.remove(email);
+            verificationServiceImp.removeCode(email);
+        }
+        return isValid;
+    }
+
+    @Override
+    public UserResponse getCurrentUser(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
+        return UserMapper.toResponse(user);
+    }
+
+    @Override
+    public UserResponse updateProfile(String username, UserProfileUpdateRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
+
+        boolean isPhoneChanged = !user.getPhone().equalsIgnoreCase(request.getPhone());
+        if (isPhoneChanged && userRepository.findByPhone(request.getPhone()).isPresent()) {
+            throw new ConflictException("Số điện thoại đã được sử dụng bởi người dùng khác");
+        }
+
+        user.setFullName(request.getFullName());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress());
+        user.setAvatar(request.getAvatar());
+
+        userRepository.save(user);
+
+        return UserMapper.toResponse(user);
+    }
+
+    @Override
+    public UserResponse changePassword(String username, ChangePasswordRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new ConflictException("Mật khẩu cũ không đúng");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new ConflictException("Mật khẩu xác nhận không khớp");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        return UserMapper.toResponse(user);
+    }
+
     private Role getRoleFromString(String roleStr) {
         if (roleStr == null || roleStr.trim().isEmpty()) {
             throw new IllegalArgumentException("Vai trò không được để trống");
@@ -130,16 +212,5 @@ public class AuthServiceImp implements AuthService {
 
     private String generateVerificationCode() {
         return String.valueOf((int)(Math.random() * 900000) + 100000);
-    }
-
-    public boolean verifyEmail(String email, String code) {
-        boolean isValid = verificationServiceImp.verifyCode(email, code);
-        if (isValid) {
-            User user = userRepository.findByEmail(email).orElseThrow();
-            user.setIsVerify(true);
-            userRepository.save(user);
-            verificationServiceImp.removeCode(email);
-        }
-        return isValid;
     }
 }

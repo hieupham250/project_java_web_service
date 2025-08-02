@@ -1,11 +1,14 @@
 package ra.edu.service;
 
-import ra.edu.dto.request.ChangePasswordRequest;
-import ra.edu.dto.request.UserProfileUpdateRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import ra.edu.dto.request.UserAdminUpdateRequest;
 import ra.edu.dto.response.UserResponse;
 
 public interface UserService {
-    UserResponse getCurrentUser(String username);
-    void updateProfile(String username, UserProfileUpdateRequest request);
-    void changePassword(String username, ChangePasswordRequest request);
+    Page<UserResponse> getUsers(Pageable pageable, String search);
+    UserResponse getUserById(int id);
+    UserResponse updateUserByAdmin(int id, UserAdminUpdateRequest request);
+    UserResponse updateStatus(int id, Boolean status);
+    UserResponse softDelete(int id);
 }
