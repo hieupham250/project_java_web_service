@@ -55,7 +55,7 @@ public class CategoryServiceImp implements CategoryService {
     }
 
     @Override
-    public CategoryResponse update(int id, CategoryRequest request) {
+    public CategoryResponse update(Integer id, CategoryRequest request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tồn tại category"));
 
@@ -73,7 +73,7 @@ public class CategoryServiceImp implements CategoryService {
     }
 
     @Override
-    public CategoryResponse delete(int id) {
+    public CategoryResponse delete(Integer id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tồn tại category"));
 

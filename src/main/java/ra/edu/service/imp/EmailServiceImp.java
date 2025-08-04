@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import ra.edu.service.EmailService;
 
 @Service
-public class EmailServiceImpl implements EmailService {
+public class EmailServiceImp implements EmailService {
     @Autowired
     private JavaMailSender mailSender;
     @Value("${spring.mail.username}")

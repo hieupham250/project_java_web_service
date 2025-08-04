@@ -13,7 +13,6 @@ import ra.edu.dto.request.CategoryRequest;
 import ra.edu.dto.response.BaseResponse;
 import ra.edu.dto.response.CategoryResponse;
 import ra.edu.dto.response.PagedData;
-import ra.edu.entity.Category;
 import ra.edu.service.CategoryService;
 
 import java.time.LocalDateTime;
@@ -29,8 +28,8 @@ public class CategoryController {
 
     @GetMapping
     public ResponseEntity<BaseResponse<PagedData<CategoryResponse>>> getCategories(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "5") Integer size,
             @RequestParam(required = false) String search
     ) {
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -59,7 +58,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BaseResponse<CategoryResponse>> update(@PathVariable int id,
+    public ResponseEntity<BaseResponse<CategoryResponse>> update(@PathVariable Integer id,
                                                          @RequestBody @Valid CategoryRequest request) {
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
@@ -71,8 +70,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<BaseResponse<CategoryResponse>> delete(@PathVariable int id) {
-        categoryService.delete(id);
+    public ResponseEntity<BaseResponse<CategoryResponse>> delete(@PathVariable Integer id) {
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
                 "Xóa danh mục thành công",

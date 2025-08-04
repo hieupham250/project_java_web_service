@@ -10,6 +10,6 @@ public interface CategoryService {
     Page<Category> findAll(Pageable pageable);
     Page<CategoryResponse> getCategories(Pageable pageable, String search);
     CategoryResponse create(CategoryRequest request);
-    CategoryResponse update(int id, CategoryRequest request);
-    CategoryResponse delete(int id);
+    CategoryResponse update(Integer id, CategoryRequest request);
+    CategoryResponse delete(Integer id);
 }

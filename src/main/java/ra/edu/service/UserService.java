@@ -7,8 +7,8 @@ import ra.edu.dto.response.UserResponse;
 
 public interface UserService {
     Page<UserResponse> getUsers(Pageable pageable, String search);
-    UserResponse getUserById(int id);
-    UserResponse updateUserByAdmin(int id, UserAdminUpdateRequest request);
-    UserResponse updateStatus(int id, Boolean status);
-    UserResponse softDelete(int id);
+    UserResponse getUserById(Integer id);
+    UserResponse updateUserByAdmin(Integer id, UserAdminUpdateRequest request);
+    UserResponse updateStatus(Integer id, Boolean status);
+    UserResponse softDelete(Integer id);
 }

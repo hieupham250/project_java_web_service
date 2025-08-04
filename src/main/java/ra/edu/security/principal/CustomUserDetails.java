@@ -14,6 +14,7 @@ import java.util.Collection;
 @NoArgsConstructor
 @Builder
 public class CustomUserDetails implements UserDetails {
+    private Integer id;
     private String username;
     private String password;
     private String email;

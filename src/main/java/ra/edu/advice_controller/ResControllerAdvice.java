@@ -16,6 +16,7 @@ import org.apache.coyote.BadRequestException;
 import ra.edu.dto.response.BaseResponse;
 import ra.edu.exception.ConflictException;
 import ra.edu.exception.NotFoundException;
+import ra.edu.exception.UnauthorizedException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -90,6 +91,11 @@ public class ResControllerAdvice {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<BaseResponse<?>> handleConflict(ConflictException ex) {
         return buildErrorResponse("Xung đột dữ liệu", buildSingleError("error", ex.getMessage()), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<BaseResponse<?>> handleUnauthorized(UnauthorizedException ex) {
+        return buildErrorResponse("Không được phép truy cập", buildSingleError("unauthorized", ex.getMessage()), HttpStatus.UNAUTHORIZED);
     }
 
     // Helper tạo lỗi đơn (1 field + message)

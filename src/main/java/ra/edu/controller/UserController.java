@@ -8,7 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ra.edu.dto.request.UpdateStatusRequest;
+import ra.edu.dto.request.UpdateUserStatusRequest;
 import ra.edu.dto.request.UserAdminUpdateRequest;
 import ra.edu.dto.response.BaseResponse;
 import ra.edu.dto.response.PagedData;
@@ -28,8 +28,8 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<BaseResponse<PagedData<UserResponse>>> getUsers(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String search
     ) {
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -43,7 +43,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BaseResponse<UserResponse>> getUserById(@PathVariable int id) {
+    public ResponseEntity<BaseResponse<UserResponse>> getUserById(@PathVariable Integer id) {
         UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
@@ -69,7 +69,7 @@ public class UserController {
     @PutMapping("/{id}/status")
     public ResponseEntity<BaseResponse<UserResponse>> updateUserStatus(
             @PathVariable int id,
-            @RequestBody @Valid UpdateStatusRequest request
+            @RequestBody @Valid UpdateUserStatusRequest request
     ) {
         UserResponse updatedUser = userService.updateStatus(id, request.getStatus());
         return ResponseEntity.ok(new BaseResponse<>(
@@ -81,7 +81,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<BaseResponse<UserResponse>> softDeleteUser(@PathVariable int id) {
+    public ResponseEntity<BaseResponse<UserResponse>> softDeleteUser(@PathVariable Integer id) {
         UserResponse deletedUser = userService.softDelete(id);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,

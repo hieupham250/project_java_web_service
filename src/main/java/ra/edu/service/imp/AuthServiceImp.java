@@ -1,5 +1,7 @@
 package ra.edu.service.imp;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,10 +29,10 @@ import ra.edu.security.jwt.JWTProvider;
 import ra.edu.security.principal.CustomUserDetails;
 import ra.edu.service.AuthService;
 import ra.edu.service.EmailService;
+import ra.edu.service.VerificationService;
 
 import java.time.LocalDate;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthServiceImp implements AuthService {
@@ -47,9 +49,12 @@ public class AuthServiceImp implements AuthService {
     @Autowired
     private EmailService emailService;
     @Autowired
-    private VerificationServiceImp verificationServiceImp;
+    private VerificationService verificationService;
 
-    private final Map<String, UserRegister> tempUsers = new ConcurrentHashMap<>();
+    private final Cache<String, UserRegister> tempUsers = Caffeine.newBuilder()
+            .expireAfterWrite(15, TimeUnit.MINUTES) // Tự động xóa sau 15 phút
+            .maximumSize(1000) // Tối đa 1000 phần tử
+            .build();
 
     @Override
     public User register(UserRegister userRegister) {
@@ -79,7 +84,7 @@ public class AuthServiceImp implements AuthService {
         tempUsers.put(userRegister.getEmail(), temp);
 
         String code = generateVerificationCode();
-        verificationServiceImp.saveCode(userRegister.getEmail(), code);
+        verificationService.saveCode(userRegister.getEmail(), code);
         emailService.sendSimpleMail(userRegister.getEmail(), "Xác minh Email", "Mã xác thực của bạn là: " + code);
 
         return null;
@@ -119,9 +124,9 @@ public class AuthServiceImp implements AuthService {
 
     @Override
     public boolean verifyEmail(String email, String code) {
-        boolean isValid = verificationServiceImp.verifyCode(email, code);
+        boolean isValid = verificationService.verifyCode(email, code);
         if (isValid) {
-            UserRegister temp = tempUsers.get(email);
+            UserRegister temp = tempUsers.getIfPresent(email);
             if (temp == null) {
                 throw new IllegalArgumentException("Không tìm thấy thông tin đăng ký tạm thời");
             }
@@ -142,8 +147,8 @@ public class AuthServiceImp implements AuthService {
 
             userRepository.save(user);
 
-            tempUsers.remove(email);
-            verificationServiceImp.removeCode(email);
+            tempUsers.invalidate(email);
+            verificationService.removeCode(email);
         }
         return isValid;
     }

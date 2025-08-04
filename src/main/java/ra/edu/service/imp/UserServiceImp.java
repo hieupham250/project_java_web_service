@@ -5,7 +5,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import ra.edu.dto.request.UserAdminUpdateRequest;
-import ra.edu.dto.response.PagedData;
 import ra.edu.dto.response.UserResponse;
 import ra.edu.entity.User;
 import ra.edu.exception.ConflictException;
@@ -35,14 +34,14 @@ public class UserServiceImp implements UserService {
     }
 
     @Override
-    public UserResponse getUserById(int id) {
+    public UserResponse getUserById(Integer id) {
         User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
         return UserMapper.toResponse(user);
     }
 
     @Override
-    public UserResponse  updateUserByAdmin(int id, UserAdminUpdateRequest request) {
+    public UserResponse  updateUserByAdmin(Integer id, UserAdminUpdateRequest request) {
         User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
 
@@ -70,7 +69,7 @@ public class UserServiceImp implements UserService {
     }
 
     @Override
-    public UserResponse updateStatus(int id, Boolean status) {
+    public UserResponse updateStatus(Integer id, Boolean status) {
         User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
         user.setStatus(status);
@@ -81,7 +80,7 @@ public class UserServiceImp implements UserService {
     }
 
     @Override
-    public UserResponse softDelete(int id) {
+    public UserResponse softDelete(Integer id) {
         User user = userRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
         user.setIsDeleted(true);
