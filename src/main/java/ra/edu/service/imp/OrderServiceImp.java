@@ -4,16 +4,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import ra.edu.dto.request.CancelOrderRequest;
+import ra.edu.dto.request.UpdateOrderInfoRequest;
+import ra.edu.dto.response.InvoiceResponse;
+import ra.edu.dto.response.OrderItemResponse;
 import ra.edu.dto.response.OrderResponse;
 import ra.edu.entity.*;
 import ra.edu.enums.OrderStatus;
 import ra.edu.enums.RoleName;
 import ra.edu.exception.NotFoundException;
+import ra.edu.mapper.InvoiceMapper;
 import ra.edu.mapper.OrderMapper;
-import ra.edu.repository.CartItemRepository;
-import ra.edu.repository.OrderRepository;
-import ra.edu.repository.ProductRepository;
-import ra.edu.repository.UserRepository;
+import ra.edu.repository.*;
 import ra.edu.service.OrderService;
 
 import java.math.BigDecimal;
@@ -31,6 +33,8 @@ public class OrderServiceImp implements OrderService {
     private ProductRepository productRepository;
     @Autowired
     private CartItemRepository cartItemRepository;
+    @Autowired
+    private InvoiceRepository invoiceRepository;
 
     @Override
     public Page<OrderResponse> getOrdersByUserId(Integer userId, Pageable pageable) {
@@ -135,9 +139,114 @@ public class OrderServiceImp implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng"));
 
+        OrderStatus currentStatus = order.getStatus();
+
+        // Không cho phép cập nhật nếu đã CANCELLED
+        if (currentStatus == OrderStatus.CANCELLED) {
+            throw new NotFoundException("Đơn hàng đã bị hủy và không thể cập nhật trạng thái");
+        }
+
+        // Không cho phép lùi trạng thái
+        if (!isForwardStatus(currentStatus, status)) {
+            throw new NotFoundException("Không thể cập nhật lùi trạng thái đơn hàng");
+        }
+
         order.setStatus(status);
         orderRepository.save(order);
 
         return OrderMapper.toResponse(order);
+    }
+
+    @Override
+    public OrderResponse updateOrderByCustomer(Integer orderId, Integer userId, UpdateOrderInfoRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Đơn hàng không tồn tại"));
+
+        if (!order.getUser().getId().equals(userId)) {
+            throw new NotFoundException("Bạn không có quyền cập nhật đơn hàng này");
+        }
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new NotFoundException("Chỉ có thể cập nhật đơn hàng ở trạng thái PENDING");
+        }
+
+        order.setShippingAddress(request.getShippingAddress());
+        order.setInternalNotes(request.getInternalNotes());
+        orderRepository.save(order);
+
+        return OrderMapper.toResponse(order);
+    }
+
+    @Override
+    public OrderResponse cancelOrder(Integer orderId, CancelOrderRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Đơn hàng không tồn tại"));
+
+        // Khôi phục tồn kho
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = item.getProduct();
+            product.setStock(product.getStock() + item.getQuantity());
+            productRepository.save(product);
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+
+        order.setInternalNotes((order.getInternalNotes() != null ? order.getInternalNotes() + "\n" : "") +
+                "[CANCEL REASON] " + request.getReason());
+        orderRepository.save(order);
+
+        return OrderMapper.toResponse(order);
+    }
+
+    @Override
+    public List<OrderItemResponse> getOrderItems(Integer orderId, Integer userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Đơn hàng không tồn tại"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Người dùng không tồn tại"));
+
+        switch (user.getRole().getName()) {
+            case ADMIN:
+            case SALES:
+                break;
+            case CUSTOMER:
+                if (!order.getUser().getId().equals(userId)) {
+                    throw new NotFoundException("Bạn không có quyền xem đơn hàng này");
+                }
+                break;
+            default:
+                throw new NotFoundException("Vai trò không hợp lệ");
+        }
+
+        return order.getOrderItems().stream()
+                .map(orderItem -> new OrderItemResponse(
+                        orderItem.getProduct().getId(),
+                        orderItem.getProduct().getName(),
+                        orderItem.getPrice(),
+                        orderItem.getQuantity()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public InvoiceResponse getInvoiceByOrderId(Integer orderId) {
+        Invoice invoice = invoiceRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn cho đơn hàng ID = " + orderId));
+        return InvoiceMapper.toResponse(invoice);
+    }
+
+    private boolean isForwardStatus(OrderStatus current, OrderStatus next) {
+        switch (current) {
+            case PENDING:
+                return next == OrderStatus.CONFIRMED || next == OrderStatus.CANCELLED;
+            case CONFIRMED:
+                return next == OrderStatus.SHIPPED || next == OrderStatus.CANCELLED;
+            case SHIPPED:
+            case CANCELLED:
+                return false;
+            default:
+                return false;
+        }
     }
 }
