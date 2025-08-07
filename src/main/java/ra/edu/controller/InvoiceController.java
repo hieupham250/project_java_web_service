@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ra.edu.dto.request.CreateInvoiceRequest;
 import ra.edu.dto.request.UpdateInvoiceStatusRequest;
 import ra.edu.dto.response.BaseResponse;
 import ra.edu.dto.response.InvoiceResponse;
@@ -59,8 +60,10 @@ public class InvoiceController {
     }
 
     @PostMapping
-    public ResponseEntity<BaseResponse<InvoiceResponse>> createInvoice(@RequestParam Integer orderId) {
-        InvoiceResponse response = invoiceService.createInvoiceFromOrder(orderId);
+    public ResponseEntity<BaseResponse<InvoiceResponse>> createInvoice(
+            @RequestBody @Valid CreateInvoiceRequest request
+    ) {
+        InvoiceResponse response = invoiceService.createInvoiceFromOrder(request.getOrderId());
         return new ResponseEntity<>(new BaseResponse<>(
                 true,
                 "Tạo hóa đơn thành công",

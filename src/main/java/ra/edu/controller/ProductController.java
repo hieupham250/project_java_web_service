@@ -49,7 +49,7 @@ public class ProductController {
         ProductResponse product = productService.getById(id);
         return ResponseEntity.ok(new BaseResponse<>(
                 true,
-                "Lấy chi tiết người dùng thành công",
+                "Lấy chi tiết sản phẩm thành công",
                 product,
                 null,
                 LocalDateTime.now()));
